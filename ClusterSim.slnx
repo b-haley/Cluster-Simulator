@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ClusterSim.Core/ClusterSim.Core.csproj" />
+    <Project Path="src/ClusterSim.Infrastructure/ClusterSim.Infrastructure.csproj" />
+    <Project Path="src/ClusterSim.Wpf/ClusterSim.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClusterSim.Tests/ClusterSim.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Элементы решения/">
+    <File Path=".env" />
+    <File Path=".env.example" />
+    <File Path=".gitignore" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+    <File Path="script-for-lib-update.ps1" />
+    <File Path="start-dev.ps1" />
+    <File Path="stop-dev.ps1" />
+  </Folder>
+</Solution>

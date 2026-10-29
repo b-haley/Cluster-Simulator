@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <sys:String x:Key="ThemeName">CleanLight</sys:String>
+
+    <SolidColorBrush x:Key="BrushAppBackground" Color="#F4F6FA"/>
+    <SolidColorBrush x:Key="BrushSidebar" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BrushTopBar" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BrushSurface" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BrushSurfaceAlt" Color="#F1F3F7"/>
+    <SolidColorBrush x:Key="BrushBorder" Color="#E3E7EF"/>
+    <SolidColorBrush x:Key="BrushBorderStrong" Color="#C9D0DC"/>
+    <SolidColorBrush x:Key="BrushTextPrimary" Color="#111827"/>
+    <SolidColorBrush x:Key="BrushTextSecondary" Color="#6B7280"/>
+    <SolidColorBrush x:Key="BrushAccent" Color="#2563EB"/>
+    <SolidColorBrush x:Key="BrushAccentHover" Color="#1D4ED8"/>
+    <SolidColorBrush x:Key="BrushAccentPressed" Color="#1E40AF"/>
+    <SolidColorBrush x:Key="BrushAccentSoft" Color="#1A2563EB"/>
+    <SolidColorBrush x:Key="BrushAccentForeground" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BrushSuccess" Color="#16A34A"/>
+    <SolidColorBrush x:Key="BrushWarning" Color="#D97706"/>
+    <SolidColorBrush x:Key="BrushDanger" Color="#DC2626"/>
+    <SolidColorBrush x:Key="BrushTrack" Color="#E3E7EF"/>
+    <SolidColorBrush x:Key="BrushGridLine" Color="#EDF0F5"/>
+    <SolidColorBrush x:Key="BrushRowHover" Color="#0D2563EB"/>
+    <SolidColorBrush x:Key="BrushRowSelected" Color="#1A2563EB"/>
+    <SolidColorBrush x:Key="BrushSidebarHover" Color="#F1F3F7"/>
+    <SolidColorBrush x:Key="BrushSidebarSelected" Color="#142563EB"/>
+
+</ResourceDictionary>

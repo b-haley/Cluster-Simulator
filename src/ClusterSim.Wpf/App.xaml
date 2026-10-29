@@ -1,0 +1,22 @@
+﻿<Application x:Class="ClusterSim.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:ClusterSim.Wpf.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/FluentDark.xaml"/>
+                <ResourceDictionary Source="Themes/Geometry.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.Buttons.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.Inputs.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.Cards.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.DataGrid.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.Navigation.xaml"/>
+                <ResourceDictionary Source="Themes/Controls.RangeSlider.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:InverseBoolConverter x:Key="InverseBool"/>
+            <converters:EnumMatchConverter x:Key="EnumMatch"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
