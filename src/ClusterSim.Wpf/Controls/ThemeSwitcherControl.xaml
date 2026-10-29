@@ -9,13 +9,6 @@
         <StackPanel Orientation="Horizontal">
             <RadioButton Style="{StaticResource ThemeSegment}"
                          GroupName="AppTheme"
-                         Content="Dark"
-                         IsChecked="{Binding DataContext.SelectedTheme,
-                             RelativeSource={RelativeSource AncestorType=Window},
-                             Converter={StaticResource EnumMatch},
-                             ConverterParameter=FluentDark}" />
-            <RadioButton Style="{StaticResource ThemeSegment}"
-                         GroupName="AppTheme"
                          Content="Neon"
                          IsChecked="{Binding DataContext.SelectedTheme,
                              RelativeSource={RelativeSource AncestorType=Window},

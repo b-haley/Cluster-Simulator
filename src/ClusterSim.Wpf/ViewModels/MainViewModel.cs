@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -17,36 +18,23 @@ using ClusterSim.Wpf.Themes;
 
 namespace ClusterSim.Wpf.ViewModels;
 
-/// <summary>
-/// Определение потока заданий для сохранения и переиспользования.
-/// </summary>
 public sealed class WorkloadDefinition
 {
     public Guid Id { get; init; } = Guid.NewGuid();
-    public string Name { get; init; } = "Без названия";
-    public string Description { get; init; } = string.Empty;
+    public string Name { get; init; } = "Новый workload";
+    public string Description { get; init; } = "";
     public WorkloadOptions Options { get; init; } = new();
 }
 
-/// <summary>
-/// Главная модель представления: управление кластерами, workload-ами,
-/// запуск симуляций и просмотр результатов.
-/// </summary>
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly SimulationRunner _runner;
     private readonly ReportExporter _exporter;
     private readonly IThemeService _themeService;
     private readonly ClusterDesignerService _clusterService;
-
     private IReadOnlyList<RunResult>? _lastResults;
 
-    public MainViewModel(
-        SimulationRunner runner,
-        ReportExporter exporter,
-        ClusterDesignerViewModel designer,
-        IThemeService themeService,
-        ClusterDesignerService clusterService)
+    public MainViewModel(SimulationRunner runner, ReportExporter exporter, ClusterDesignerViewModel designer, IThemeService themeService, ClusterDesignerService clusterService)
     {
         _runner = runner ?? throw new ArgumentNullException(nameof(runner));
         _exporter = exporter ?? throw new ArgumentNullException(nameof(exporter));
@@ -55,7 +43,6 @@ public sealed partial class MainViewModel : ObservableObject
         _clusterService = clusterService ?? throw new ArgumentNullException(nameof(clusterService));
 
         _selectedTheme = themeService.Current;
-
         AvailableClusters = new ObservableCollection<ClusterDefinition>(_clusterService.ListSaved());
         AvailableWorkloads = new ObservableCollection<WorkloadDefinition>();
         SelectedClusters = new ObservableCollection<ClusterDefinition>();
@@ -70,50 +57,27 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void LoadWorkloads()
     {
-        var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ClusterSim",
-            "workloads.json");
-
+        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ClusterSim", "workloads.json");
         if (File.Exists(path))
         {
             try
             {
-                var json = File.ReadAllText(path);
-                var definitions = System.Text.Json.JsonSerializer.Deserialize<WorkloadDefinition[]>(json);
-                if (definitions is not null)
-                {
-                    foreach (var def in definitions)
-                    {
-                        AvailableWorkloads.Add(def);
-                    }
-                }
+                var definitions = JsonSerializer.Deserialize<WorkloadDefinition[]>(File.ReadAllText(path));
+                if (definitions != null) foreach (var def in definitions) AvailableWorkloads.Add(def);
             }
-            catch
-            {
-                // Файл поврежден: начинаем с пустого списка.
-            }
+            catch { }
         }
     }
 
     private void SaveWorkloads()
     {
-        var path = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ClusterSim",
-            "workloads.json");
-
+        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ClusterSim", "workloads.json");
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var json = System.Text.Json.JsonSerializer.Serialize(AvailableWorkloads.ToArray(),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(path, json);
+            File.WriteAllText(path, JsonSerializer.Serialize(AvailableWorkloads.ToArray(), new JsonSerializerOptions { WriteIndented = true }));
         }
-        catch
-        {
-            // Ошибка записи: не блокируем работу.
-        }
+        catch { }
     }
 
     public ClusterDesignerViewModel Designer { get; }
@@ -129,33 +93,24 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<JobSnapshot> AllJobs { get; }
     public ObservableCollection<UtilizationPoint> TimeSeries { get; }
 
-    [ObservableProperty]
-    private ThemeKind _selectedTheme;
-
+    [ObservableProperty] private ThemeKind _selectedTheme;
     partial void OnSelectedThemeChanged(ThemeKind value) => _themeService.Apply(value);
 
-    // ---------------- Конструктор кластера ----------------
-
-    [ObservableProperty]
-    private ClusterDefinition? _selectedCluster;
-
-    [ObservableProperty]
-    private string _clusterStatusMessage = string.Empty;
+    // --- Конструктор кластера ---
+    [ObservableProperty] private ClusterDefinition? _selectedCluster;
+    [ObservableProperty] private string _clusterStatusMessage = "";
 
     [RelayCommand]
     private void SaveCluster()
     {
         try
         {
-            var definition = Designer.BuildDefinition();
-            _clusterService.Save(definition);
-            AvailableClusters.Add(definition);
-            ClusterStatusMessage = $"Кластер \"{definition.Name}\" сохранен.";
+            var def = Designer.BuildDefinition();
+            _clusterService.Save(def);
+            AvailableClusters.Add(def);
+            ClusterStatusMessage = $"Кластер \"{def.Name}\" сохранен.";
         }
-        catch (Exception exception)
-        {
-            ClusterStatusMessage = $"Ошибка: {exception.Message}";
-        }
+        catch (Exception ex) { ClusterStatusMessage = $"Ошибка: {ex.Message}"; }
     }
 
     [RelayCommand]
@@ -168,57 +123,27 @@ public sealed partial class MainViewModel : ObservableObject
         ClusterStatusMessage = $"Кластер \"{SelectedCluster.Name}\" удален.";
     }
 
-    // ---------------- Конструктор заданий ----------------
-
-    [ObservableProperty]
-    private WorkloadDefinition? _selectedWorkload;
-
-    [ObservableProperty]
-    private string _workloadName = "Новый workload";
-
-    [ObservableProperty]
-    private string _workloadDescription = string.Empty;
-
-    [ObservableProperty]
-    private int _jobCount = 100;
-
-    [ObservableProperty]
-    private int _seed = 42;
-
-    [ObservableProperty]
-    private double _arrivalRatePerHour = 60;
-
-    [ObservableProperty]
-    private double _minDurationSeconds = 60;
-
-    [ObservableProperty]
-    private double _maxDurationSeconds = 3600;
-
-    [ObservableProperty]
-    private int _minCpuCores = 1;
-
-    [ObservableProperty]
-    private int _maxCpuCores = 4;
-
-    [ObservableProperty]
-    private int _minRamMb = 512;
-
-    [ObservableProperty]
-    private int _maxRamMb = 4096;
-
-    [ObservableProperty]
-    private double _parallelJobProbability;
-
-    [ObservableProperty]
-    private double _estimationError;
-
-    [ObservableProperty]
-    private string _workloadStatusMessage = string.Empty;
+    // --- Конструктор заданий ---
+    [ObservableProperty] private WorkloadDefinition? _selectedWorkload;
+    [ObservableProperty] private string _workloadName = "Новый workload";
+    [ObservableProperty] private string _workloadDescription = "";
+    [ObservableProperty] private int _jobCount = 100;
+    [ObservableProperty] private int _seed = 42;
+    [ObservableProperty] private double _arrivalRatePerHour = 60;
+    [ObservableProperty] private double _minDurationSeconds = 60;
+    [ObservableProperty] private double _maxDurationSeconds = 3600;
+    [ObservableProperty] private int _minCpuCores = 1;
+    [ObservableProperty] private int _maxCpuCores = 4;
+    [ObservableProperty] private int _minRamMb = 512;
+    [ObservableProperty] private int _maxRamMb = 4096;
+    [ObservableProperty] private double _parallelJobProbability;
+    [ObservableProperty] private double _estimationError;
+    [ObservableProperty] private string _workloadStatusMessage = "";
 
     [RelayCommand]
     private void SaveWorkload()
     {
-        var definition = new WorkloadDefinition
+        var def = new WorkloadDefinition
         {
             Name = WorkloadName,
             Description = WorkloadDescription,
@@ -237,10 +162,9 @@ public sealed partial class MainViewModel : ObservableObject
                 EstimationError = EstimationError
             }
         };
-
-        AvailableWorkloads.Add(definition);
+        AvailableWorkloads.Add(def);
         SaveWorkloads();
-        WorkloadStatusMessage = $"Workload \"{definition.Name}\" сохранен.";
+        WorkloadStatusMessage = $"Workload \"{def.Name}\" сохранен.";
     }
 
     [RelayCommand]
@@ -256,103 +180,43 @@ public sealed partial class MainViewModel : ObservableObject
     private void LoadWorkload()
     {
         if (SelectedWorkload is null) return;
-
-        WorkloadName = SelectedWorkload.Name;
-        WorkloadDescription = SelectedWorkload.Description;
-        JobCount = SelectedWorkload.Options.JobCount;
-        Seed = SelectedWorkload.Options.Seed;
+        WorkloadName = SelectedWorkload.Name; WorkloadDescription = SelectedWorkload.Description;
+        JobCount = SelectedWorkload.Options.JobCount; Seed = SelectedWorkload.Options.Seed;
         ArrivalRatePerHour = SelectedWorkload.Options.ArrivalRatePerHour;
-        MinDurationSeconds = SelectedWorkload.Options.MinDurationSeconds;
-        MaxDurationSeconds = SelectedWorkload.Options.MaxDurationSeconds;
-        MinCpuCores = SelectedWorkload.Options.MinCpuCores;
-        MaxCpuCores = SelectedWorkload.Options.MaxCpuCores;
-        MinRamMb = SelectedWorkload.Options.MinRamMb;
-        MaxRamMb = SelectedWorkload.Options.MaxRamMb;
-        ParallelJobProbability = SelectedWorkload.Options.ParallelJobProbability;
-        EstimationError = SelectedWorkload.Options.EstimationError;
-
-        WorkloadStatusMessage = $"Workload \"{SelectedWorkload.Name}\" загружен в редактор.";
+        MinDurationSeconds = SelectedWorkload.Options.MinDurationSeconds; MaxDurationSeconds = SelectedWorkload.Options.MaxDurationSeconds;
+        MinCpuCores = SelectedWorkload.Options.MinCpuCores; MaxCpuCores = SelectedWorkload.Options.MaxCpuCores;
+        MinRamMb = SelectedWorkload.Options.MinRamMb; MaxRamMb = SelectedWorkload.Options.MaxRamMb;
+        ParallelJobProbability = SelectedWorkload.Options.ParallelJobProbability; EstimationError = SelectedWorkload.Options.EstimationError;
+        WorkloadStatusMessage = $"Workload \"{SelectedWorkload.Name}\" загружен.";
     }
 
-    // ---------------- Симуляция ----------------
+    // --- Симуляция ---
+    [ObservableProperty] private SchedulingPolicyKind _selectedPolicy = SchedulingPolicyKind.Fifo;
+    [ObservableProperty] private bool _strictFifo = true;
+    [ObservableProperty] private bool _allowPreemption;
+    [ObservableProperty] private double _checkpointOverheadSeconds;
+    [ObservableProperty] private double _minRunTimeBeforePreemption = 60;
+    [ObservableProperty] private double _timeSeriesStep = 60;
+    [ObservableProperty] private bool _compareAllPolicies;
+    [ObservableProperty] private string _outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ClusterSim", "reports");
+    [ObservableProperty] private string _statusMessage = "Готов к работе.";
+    [ObservableProperty] private bool _isRunning;
 
-    [ObservableProperty]
-    private SchedulingPolicyKind _selectedPolicy = SchedulingPolicyKind.Fifo;
-
-    [ObservableProperty]
-    private bool _strictFifo = true;
-
-    [ObservableProperty]
-    private bool _allowPreemption;
-
-    [ObservableProperty]
-    private double _checkpointOverheadSeconds;
-
-    [ObservableProperty]
-    private double _minRunTimeBeforePreemption = 60;
-
-    [ObservableProperty]
-    private double _timeSeriesStep = 60;
-
-    [ObservableProperty]
-    private bool _compareAllPolicies;
-
-    [ObservableProperty]
-    private string _outputDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "ClusterSim",
-        "reports");
-
-    [ObservableProperty]
-    private string _statusMessage = "Готов к работе.";
-
-    [ObservableProperty]
-    private bool _isRunning;
-
-    [ObservableProperty]
-    private double _currentTime;
-
-    [ObservableProperty]
-    private double _makespan;
-
-    [ObservableProperty]
-    private double _averageWaitTime;
-
-    [ObservableProperty]
-    private double _averageTurnaround;
-
-    [ObservableProperty]
-    private double _averageSlowdown;
-
-    [ObservableProperty]
-    private double _cpuUtilization;
-
-    [ObservableProperty]
-    private double _ramUtilization;
-
-    [ObservableProperty]
-    private double _throughputPerHour;
-
-    [ObservableProperty]
-    private int _totalJobs;
-
-    [ObservableProperty]
-    private int _completedJobs;
-
-    [ObservableProperty]
-    private int _unfinishedJobs;
-
-    [ObservableProperty]
-    private int _rejectedJobs;
-
-    [ObservableProperty]
-    private int _preemptionCount;
-
-    [ObservableProperty]
-    private double _averageQueueLength;
-
-    [ObservableProperty]
-    private int _maxQueueLength;
+    [ObservableProperty] private double _currentTime;
+    [ObservableProperty] private double _makespan;
+    [ObservableProperty] private double _averageWaitTime;
+    [ObservableProperty] private double _averageTurnaround;
+    [ObservableProperty] private double _averageSlowdown;
+    [ObservableProperty] private double _cpuUtilization;
+    [ObservableProperty] private double _ramUtilization;
+    [ObservableProperty] private double _throughputPerHour;
+    [ObservableProperty] private int _totalJobs;
+    [ObservableProperty] private int _completedJobs;
+    [ObservableProperty] private int _unfinishedJobs;
+    [ObservableProperty] private int _rejectedJobs;
+    [ObservableProperty] private int _preemptionCount;
+    [ObservableProperty] private double _averageQueueLength;
+    [ObservableProperty] private int _maxQueueLength;
 
     public bool HasResults => RunResults.Count > 0;
     public bool HasComparison => Comparison.Count > 0;
@@ -361,179 +225,89 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task RunSimulationAsync()
     {
         if (IsRunning) return;
-        if (SelectedClusters.Count == 0)
-        {
-            StatusMessage = "Выберите хотя бы один кластер для тестирования.";
-            return;
-        }
-        if (AvailableWorkloads.Count == 0)
-        {
-            StatusMessage = "Создайте хотя бы один workload.";
-            return;
-        }
+        if (SelectedClusters.Count == 0) { StatusMessage = "Выберите хотя бы один кластер."; return; }
+        if (AvailableWorkloads.Count == 0) { StatusMessage = "Создайте хотя бы один workload."; return; }
 
-        IsRunning = true;
-        StatusMessage = "Симуляция выполняется...";
-
+        IsRunning = true; StatusMessage = "Симуляция выполняется...";
         try
         {
-            var results = new List<RunResult>();
+            var results = new System.Collections.Generic.List<RunResult>();
+            var workload = AvailableWorkloads.FirstOrDefault()!;
 
             foreach (var cluster in SelectedClusters)
             {
-                var workload = AvailableWorkloads.FirstOrDefault();
-                if (workload is null) continue;
-
                 var options = BuildOptions(cluster, workload.Options);
-
                 if (CompareAllPolicies)
                 {
-                    var optionsList = AvailablePolicies.Select(policy =>
-                        BuildOptions(cluster, workload.Options, policy)).ToList();
-                    var clusterResults = await _runner.RunComparisonAsync(optionsList);
-                    results.AddRange(clusterResults);
+                    var optsList = AvailablePolicies.Select(p => BuildOptions(cluster, workload.Options, p)).ToList();
+                    results.AddRange(await _runner.RunComparisonAsync(optsList));
                 }
                 else
                 {
-                    var result = await _runner.RunSingleAsync(options);
-                    results.Add(result);
+                    results.Add(await _runner.RunSingleAsync(options));
                 }
             }
 
             _lastResults = results;
             RunResults.Clear();
-            foreach (var result in results)
-            {
-                RunResults.Add(result);
-            }
+            foreach (var r in results) RunResults.Add(r);
 
-            if (results.Count > 0)
-            {
-                FillDetails(results.First());
-            }
-
-            if (CompareAllPolicies && results.Count > 1)
-            {
-                FillComparison(results);
-            }
-            else
-            {
-                Comparison.Clear();
-            }
+            if (results.Count > 0) FillDetails(results.First());
+            if (CompareAllPolicies && results.Count > 1) FillComparison(results);
+            else Comparison.Clear();
 
             StatusMessage = $"Симуляция завершена: прогонов — {results.Count}.";
+            OnPropertyChanged(nameof(HasResults));
+            OnPropertyChanged(nameof(HasComparison));
         }
-        catch (Exception exception)
-        {
-            StatusMessage = $"Ошибка: {exception.Message}";
-        }
-        finally
-        {
-            IsRunning = false;
-        }
+        catch (Exception ex) { StatusMessage = $"Ошибка: {ex.Message}"; }
+        finally { IsRunning = false; }
     }
 
-    private SimulationOptions BuildOptions(ClusterDefinition cluster, WorkloadOptions workload, SchedulingPolicyKind? policy = null)
+    private SimulationOptions BuildOptions(ClusterDefinition cluster, WorkloadOptions workload, SchedulingPolicyKind? policy = null) => new()
     {
-        return new SimulationOptions
-        {
-            Cluster = new ClusterOptions { CustomNodes = cluster.Nodes },
-            Workload = workload,
-            Policy = new PolicyOptions
-            {
-                Kind = policy ?? SelectedPolicy,
-                StrictFifo = StrictFifo,
-                AllowPreemption = AllowPreemption,
-                CheckpointOverheadSeconds = CheckpointOverheadSeconds,
-                MinRunTimeBeforePreemption = MinRunTimeBeforePreemption
-            },
-            TimeSeriesStep = TimeSeriesStep
-        };
-    }
+        Cluster = new ClusterOptions { CustomNodes = cluster.Nodes },
+        Workload = workload,
+        Policy = new PolicyOptions { Kind = policy ?? SelectedPolicy, StrictFifo = StrictFifo, AllowPreemption = AllowPreemption, CheckpointOverheadSeconds = CheckpointOverheadSeconds, MinRunTimeBeforePreemption = MinRunTimeBeforePreemption },
+        TimeSeriesStep = TimeSeriesStep
+    };
 
     [RelayCommand]
     private void ExportResults()
     {
-        if (_lastResults is null || _lastResults.Count == 0)
-        {
-            StatusMessage = "Экспортировать нечего.";
-            return;
-        }
-
+        if (_lastResults is null || _lastResults.Count == 0) { StatusMessage = "Экспортировать нечего."; return; }
         try
         {
-            var paths = new List<string>();
-            foreach (var result in _lastResults)
-            {
-                paths.AddRange(_exporter.ExportAll(result.Metrics, result.Options, OutputDirectory));
-            }
-            if (_lastResults.Count > 1)
-            {
-                paths.Add(_exporter.ExportComparison(
-                    _lastResults.Select(r => r.Metrics).ToList(), OutputDirectory));
-            }
+            var paths = new System.Collections.Generic.List<string>();
+            foreach (var r in _lastResults) paths.AddRange(_exporter.ExportAll(r.Metrics, r.Options, OutputDirectory));
+            if (_lastResults.Count > 1) paths.Add(_exporter.ExportComparison(_lastResults.Select(r => r.Metrics).ToList(), OutputDirectory));
             StatusMessage = $"Экспортировано файлов: {paths.Count}.";
         }
-        catch (Exception exception)
-        {
-            StatusMessage = $"Ошибка экспорта: {exception.Message}";
-        }
+        catch (Exception ex) { StatusMessage = $"Ошибка экспорта: {ex.Message}"; }
     }
 
     private void FillDetails(RunResult result)
     {
-        var snapshot = result.FinalSnapshot;
+        var s = result.FinalSnapshot;
+        Nodes.Clear(); foreach (var n in s.Nodes) Nodes.Add(n);
+        AllJobs.Clear(); foreach (var j in s.PendingJobs.Concat(s.RunningJobs).Concat(s.FinishedJobs).OrderBy(j => j.Id)) AllJobs.Add(j);
+        TimeSeries.Clear(); foreach (var p in result.Metrics.TimeSeries) TimeSeries.Add(p);
 
-        Nodes.Clear();
-        foreach (var node in snapshot.Nodes) Nodes.Add(node);
-
-        AllJobs.Clear();
-        foreach (var job in snapshot.PendingJobs
-                     .Concat(snapshot.RunningJobs)
-                     .Concat(snapshot.FinishedJobs)
-                     .OrderBy(job => job.Id))
-        {
-            AllJobs.Add(job);
-        }
-
-        TimeSeries.Clear();
-        foreach (var point in result.Metrics.TimeSeries) TimeSeries.Add(point);
-
-        var metrics = snapshot.Metrics;
-        CurrentTime = metrics.CurrentTime;
-        Makespan = metrics.Makespan;
-        AverageWaitTime = metrics.AverageWaitTime;
-        AverageTurnaround = metrics.AverageTurnaround;
-        AverageSlowdown = metrics.AverageSlowdown;
-        CpuUtilization = metrics.CpuUtilization;
-        RamUtilization = metrics.RamUtilization;
-        ThroughputPerHour = metrics.ThroughputPerHour;
-        TotalJobs = metrics.TotalJobs;
-        CompletedJobs = metrics.CompletedJobs;
-        UnfinishedJobs = metrics.UnfinishedJobs;
-        RejectedJobs = metrics.RejectedJobs;
-        PreemptionCount = metrics.PreemptionCount;
-        AverageQueueLength = metrics.AverageQueueLength;
-        MaxQueueLength = metrics.MaxQueueLength;
+        var m = s.Metrics;
+        CurrentTime = m.CurrentTime; Makespan = m.Makespan; AverageWaitTime = m.AverageWaitTime;
+        AverageTurnaround = m.AverageTurnaround; AverageSlowdown = m.AverageSlowdown;
+        CpuUtilization = m.CpuUtilization; RamUtilization = m.RamUtilization; ThroughputPerHour = m.ThroughputPerHour;
+        TotalJobs = m.TotalJobs; CompletedJobs = m.CompletedJobs; UnfinishedJobs = m.UnfinishedJobs;
+        RejectedJobs = m.RejectedJobs; PreemptionCount = m.PreemptionCount; AverageQueueLength = m.AverageQueueLength; MaxQueueLength = m.MaxQueueLength;
     }
 
-    private void FillComparison(IReadOnlyList<RunResult> results)
+    private void FillComparison(System.Collections.Generic.IReadOnlyList<RunResult> results)
     {
         Comparison.Clear();
-        foreach (var result in results)
+        foreach (var r in results)
         {
-            var metrics = result.Metrics;
-            Comparison.Add(new ComparisonRow(
-                metrics.PolicyName,
-                metrics.Makespan,
-                metrics.AverageWaitTime,
-                metrics.AverageTurnaround,
-                metrics.AverageSlowdown,
-                metrics.CpuUtilization,
-                metrics.RamUtilization,
-                metrics.ThroughputPerHour,
-                metrics.CompletedJobs,
-                metrics.PreemptionCount));
+            var m = r.Metrics;
+            Comparison.Add(new ComparisonRow(m.PolicyName, m.Makespan, m.AverageWaitTime, m.AverageTurnaround, m.AverageSlowdown, m.CpuUtilization, m.RamUtilization, m.ThroughputPerHour, m.CompletedJobs, m.PreemptionCount));
         }
     }
 }
