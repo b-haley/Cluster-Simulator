@@ -1,14 +1,16 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ClusterSim.Core.Features.Cluster;
 using ClusterSim.Core.Features.ClusterNode;
-using ClusterSim.Wpf.Services;
+using ClusterSim.Core.Simulation.Scheduling;
 
 namespace ClusterSim.Wpf.ViewModels;
 
 /// <summary>
 /// Редактируемая строка узла в дизайнере кластера.
+/// RAM и диск указываются в ГБ, как в реальных спецификациях.
 /// </summary>
 public sealed partial class DesignerNodeRow : ObservableObject
 {
@@ -18,44 +20,42 @@ public sealed partial class DesignerNodeRow : ObservableObject
 
     /// <summary>Количество ядер CPU.</summary>
     [ObservableProperty]
-    private int _cpuCores = 4;
+    private int _cpuCores = 8;
 
-    /// <summary>Объем RAM в мегабайтах.</summary>
+    /// <summary>Объем RAM, ГБ.</summary>
     [ObservableProperty]
-    private int _ramMb = 8192;
+    private int _ramGb = 32;
+
+    /// <summary>Объем диска, ГБ.</summary>
+    [ObservableProperty]
+    private int _diskGb = 512;
 }
 
 /// <summary>
-/// ViewModel конструктора кластеров: редактирование узлов,
-/// сохранение и загрузка конфигураций через хранилище.
+/// ViewModel конструктора кластеров: паспорт конфигурации, шаблонная генерация узлов,
+/// ручная правка неоднородных узлов, выбор планировщика и сводка характеристик.
 /// </summary>
 public sealed partial class ClusterDesignerViewModel : ObservableObject
 {
-    private readonly ClusterDesignerService _service;
-
-    public ClusterDesignerViewModel(ClusterDesignerService service)
+    public ClusterDesignerViewModel()
     {
-        _service = service ?? throw new ArgumentNullException(nameof(service));
-
         Nodes = new ObservableCollection<DesignerNodeRow>();
-        SavedClusters = new ObservableCollection<ClusterDefinition>();
-
-        AddNode();
-        AddNode();
-        RefreshSaved();
+        GenerateNodesFromTemplate();
     }
 
     /// <summary>Редактируемый список узлов будущего кластера.</summary>
     public ObservableCollection<DesignerNodeRow> Nodes { get; }
 
-    /// <summary>Список сохраненных конфигураций кластеров.</summary>
-    public ObservableCollection<ClusterDefinition> SavedClusters { get; }
+    /// <summary>Политики, доступные для выбора планировщика кластера.</summary>
+    public IReadOnlyList<SchedulingPolicyKind> AvailablePolicies { get; } = Enum.GetValues<SchedulingPolicyKind>();
 
-    /// <summary>Название конфигурации.</summary>
+    // ---------------- Паспорт конфигурации ----------------
+
+    /// <summary>Название кластера.</summary>
     [ObservableProperty]
-    private string _clusterName = "My cluster";
+    private string _clusterName = "Новый кластер";
 
-    /// <summary>Описание конфигурации.</summary>
+    /// <summary>Описание кластера.</summary>
     [ObservableProperty]
     private string _description = string.Empty;
 
@@ -63,19 +63,73 @@ public sealed partial class ClusterDesignerViewModel : ObservableObject
     [ObservableProperty]
     private DesignerNodeRow? _selectedNode;
 
-    /// <summary>Выбранная сохраненная конфигурация.</summary>
-    [ObservableProperty]
-    private ClusterDefinition? _selectedSaved;
-
     /// <summary>Сообщение о результате последнего действия.</summary>
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
-    /// <summary>Добавляет узел в конструктор.</summary>
+    // ---------------- Планировщик кластера ----------------
+
+    /// <summary>Политика планирования по умолчанию для этого кластера.</summary>
+    [ObservableProperty]
+    private SchedulingPolicyKind _policy = SchedulingPolicyKind.Fifo;
+
+    /// <summary>Строгий FIFO.</summary>
+    [ObservableProperty]
+    private bool _strictFifo = true;
+
+    /// <summary>Разрешить вытеснение с контрольной точкой.</summary>
+    [ObservableProperty]
+    private bool _allowPreemption;
+
+    // ---------------- Шаблон быстрой генерации ----------------
+
+    /// <summary>Сколько узлов сгенерировать.</summary>
+    [ObservableProperty]
+    private int _templateNodeCount = 4;
+
+    /// <summary>Ядер на узел в шаблоне.</summary>
+    [ObservableProperty]
+    private int _templateCpuCores = 8;
+
+    /// <summary>RAM на узел в шаблоне, ГБ.</summary>
+    [ObservableProperty]
+    private int _templateRamGb = 32;
+
+    /// <summary>Диск на узел в шаблоне, ГБ.</summary>
+    [ObservableProperty]
+    private int _templateDiskGb = 512;
+
+    // ---------------- Сводка характеристик ----------------
+
+    /// <summary>Суммарное число узлов.</summary>
+    public int TotalNodes => Nodes.Count;
+
+    /// <summary>Суммарное число ядер.</summary>
+    public int TotalCores => Nodes.Sum(node => node.CpuCores);
+
+    /// <summary>Суммарная RAM, ГБ.</summary>
+    public int TotalRamGb => Nodes.Sum(node => node.RamGb);
+
+    /// <summary>Суммарный диск, ГБ.</summary>
+    public int TotalDiskGb => Nodes.Sum(node => node.DiskGb);
+
+    // ---------------- Команды ----------------
+
+    /// <summary>Добавляет один узел с характеристиками текущего шаблона.</summary>
     [RelayCommand]
     private void AddNode()
     {
-        Nodes.Add(new DesignerNodeRow { Name = $"node-{Nodes.Count:D2}" });
+        var row = new DesignerNodeRow
+        {
+            Name = $"node-{Nodes.Count:D2}",
+            CpuCores = TemplateCpuCores,
+            RamGb = TemplateRamGb,
+            DiskGb = TemplateDiskGb
+        };
+
+        Attach(row);
+        Nodes.Add(row);
+        NotifyTotals();
     }
 
     /// <summary>Удаляет выбранный узел.</summary>
@@ -88,76 +142,44 @@ public sealed partial class ClusterDesignerViewModel : ObservableObject
             return;
         }
 
+        Detach(SelectedNode);
         Nodes.Remove(SelectedNode);
         SelectedNode = null;
+        NotifyTotals();
     }
 
-    /// <summary>Сохраняет текущую конфигурацию в хранилище.</summary>
+    /// <summary>Полностью пересобирает список узлов по шаблону.</summary>
     [RelayCommand]
-    private void SaveCluster()
+    private void GenerateNodesFromTemplate()
     {
-        try
+        foreach (var row in Nodes.ToList())
         {
-            var definition = BuildDefinition();
-            _service.Save(definition);
-            StatusMessage = $"Кластер \"{definition.Name}\" сохранен.";
-            RefreshSaved();
+            Detach(row);
         }
-        catch (Exception exception)
+
+        Nodes.Clear();
+
+        var count = Math.Clamp(TemplateNodeCount, 1, 512);
+
+        for (var index = 0; index < count; index++)
         {
-            StatusMessage = $"Ошибка сохранения: {exception.Message}";
+            var row = new DesignerNodeRow
+            {
+                Name = $"node-{index:D2}",
+                CpuCores = TemplateCpuCores,
+                RamGb = TemplateRamGb,
+                DiskGb = TemplateDiskGb
+            };
+
+            Attach(row);
+            Nodes.Add(row);
         }
+
+        NotifyTotals();
+        StatusMessage = $"Сгенерировано узлов: {count}.";
     }
 
-    /// <summary>Загружает выбранную сохраненную конфигурацию в редактор.</summary>
-    [RelayCommand]
-    private void LoadSelectedCluster()
-    {
-        if (SelectedSaved is null)
-        {
-            StatusMessage = "Выберите сохраненный кластер.";
-            return;
-        }
-
-        var definition = _service.Load(SelectedSaved.Id);
-
-        if (definition is null)
-        {
-            StatusMessage = "Сохраненный кластер не найден.";
-            return;
-        }
-
-        ApplyDefinition(definition);
-        StatusMessage = $"Кластер \"{definition.Name}\" загружен в редактор.";
-    }
-
-    /// <summary>Удаляет выбранную сохраненную конфигурацию.</summary>
-    [RelayCommand]
-    private void DeleteSelectedCluster()
-    {
-        if (SelectedSaved is null)
-        {
-            StatusMessage = "Выберите сохраненный кластер.";
-            return;
-        }
-
-        var name = SelectedSaved.Name;
-        _service.Delete(SelectedSaved.Id);
-        RefreshSaved();
-        StatusMessage = $"Кластер \"{name}\" удален.";
-    }
-
-    /// <summary>Обновляет список сохраненных конфигураций.</summary>
-    [RelayCommand]
-    private void RefreshSaved()
-    {
-        SavedClusters.Clear();
-
-        foreach (var definition in _service.ListSaved())
-        {
-            SavedClusters.Add(definition);
-        }
-    }
+    // ---------------- Сборка и применение определения ----------------
 
     /// <summary>Строит сохраняемое определение из текущего состояния редактора.</summary>
     public ClusterDefinition BuildDefinition()
@@ -171,28 +193,64 @@ public sealed partial class ClusterDesignerViewModel : ObservableObject
         {
             Name = string.IsNullOrWhiteSpace(ClusterName) ? "Без названия" : ClusterName,
             Description = Description,
+            Policy = Policy,
+            StrictFifo = StrictFifo,
+            AllowPreemption = AllowPreemption,
             Nodes = Nodes
-                .Select(node => new ClusterNodeDefinition(node.Name, node.CpuCores, node.RamMb))
+                .Select(node => new ClusterNodeDefinition(node.Name, node.CpuCores, node.RamGb * 1024, node.DiskGb))
                 .ToList()
         };
     }
 
     /// <summary>Заполняет редактор из загруженного определения.</summary>
-    private void ApplyDefinition(ClusterDefinition definition)
+    public void ApplyDefinition(ClusterDefinition definition)
     {
+        ArgumentNullException.ThrowIfNull(definition);
+
         ClusterName = definition.Name;
         Description = definition.Description;
+        Policy = definition.Policy;
+        StrictFifo = definition.StrictFifo;
+        AllowPreemption = definition.AllowPreemption;
+
+        foreach (var row in Nodes.ToList())
+        {
+            Detach(row);
+        }
 
         Nodes.Clear();
 
         foreach (var node in definition.Nodes)
         {
-            Nodes.Add(new DesignerNodeRow
+            var row = new DesignerNodeRow
             {
                 Name = node.Name,
                 CpuCores = node.CpuCores,
-                RamMb = node.RamMb
-            });
+                RamGb = Math.Max(1, node.RamMb / 1024),
+                DiskGb = node.DiskGb
+            };
+
+            Attach(row);
+            Nodes.Add(row);
         }
+
+        NotifyTotals();
+        StatusMessage = $"Кластер \"{definition.Name}\" загружен в редактор.";
+    }
+
+    // ---------------- Вспомогательное ----------------
+
+    private void Attach(DesignerNodeRow row) => row.PropertyChanged += OnRowChanged;
+
+    private void Detach(DesignerNodeRow row) => row.PropertyChanged -= OnRowChanged;
+
+    private void OnRowChanged(object? sender, PropertyChangedEventArgs e) => NotifyTotals();
+
+    private void NotifyTotals()
+    {
+        OnPropertyChanged(nameof(TotalNodes));
+        OnPropertyChanged(nameof(TotalCores));
+        OnPropertyChanged(nameof(TotalRamGb));
+        OnPropertyChanged(nameof(TotalDiskGb));
     }
 }

@@ -29,6 +29,15 @@ public sealed record UtilizationPoint(
     int UsedRamMb,
     int TotalRamMb);
 
+/// <summary>Интегральная загрузка одного узла за прогон.</summary>
+public sealed record NodeUtilization(
+    int NodeId,
+    string NodeName,
+    int TotalCpuCores,
+    double CpuUtilization,
+    int TotalRamMb,
+    double RamUtilization);
+
 /// <summary>Итоговые метрики одного прогона симуляции.</summary>
 public sealed record SimulationMetrics(
     string PolicyName,
@@ -47,4 +56,5 @@ public sealed record SimulationMetrics(
     double AverageQueueLength,
     int MaxQueueLength,
     IReadOnlyList<JobMetrics> Jobs,
-    IReadOnlyList<UtilizationPoint> TimeSeries);
+    IReadOnlyList<UtilizationPoint> TimeSeries,
+    IReadOnlyList<NodeUtilization> NodeUtilizations);

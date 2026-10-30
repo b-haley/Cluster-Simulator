@@ -13,6 +13,9 @@ using ClusterSim.Wpf.ViewModels;
 
 namespace ClusterSim.Wpf;
 
+/// <summary>
+/// Точка входа: DI-контейнер, восстановление темы, инициализация схемы БД, главное окно.
+/// </summary>
 public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
@@ -44,7 +47,6 @@ public partial class App : Application
         services.AddSingleton<ClusterDesignerService>();
         services.AddSingleton<SimulationRunner>();
         services.AddSingleton<ReportExporter>();
-        services.AddSingleton<ClusterDesignerViewModel>();
         services.AddSingleton<MainViewModel>();
     }
 
@@ -56,6 +58,7 @@ public partial class App : Application
         }
         catch (Exception)
         {
+            // База недоступна: не блокируем запуск UI.
         }
     }
 
@@ -82,6 +85,7 @@ public partial class App : Application
         }
         catch (JsonException)
         {
+            // Некорректный JSON: значения по умолчанию.
         }
 
         return new PostgresOptions();

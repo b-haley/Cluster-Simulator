@@ -1,0 +1,118 @@
+<Window x:Class="ClusterSim.Wpf.Views.WorkloadEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ClusterSim.Wpf.Controls"
+        Title="Редактор профиля заданий"
+        Width="720" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BrushAppBackground}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Паспорт профиля"/>
+                        <UniformGrid Columns="2" Margin="0,8,0,0">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Название"/>
+                                <TextBox Text="{Binding WorkloadName, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Описание"/>
+                                <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Поток заданий"/>
+                        <UniformGrid Columns="3" Margin="0,8,0,0">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Количество заданий"/>
+                                <TextBox Text="{Binding JobCount, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Seed"/>
+                                <TextBox Text="{Binding Seed, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Заданий в час"/>
+                                <TextBox Text="{Binding ArrivalRatePerHour, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CardTitle}" Text="Характеристики заданий"/>
+
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Длительность, сек (от и до)" Margin="0,8,0,0"/>
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MinDurationSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                            <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="0" Maximum="7200"
+                                                  LowerValue="{Binding MinDurationSeconds}" UpperValue="{Binding MaxDurationSeconds}"/>
+                            <TextBox Grid.Column="2" Text="{Binding MaxDurationSeconds, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="Ядра CPU (от и до)"/>
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MinCpuCores, UpdateSourceTrigger=PropertyChanged}"/>
+                            <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="1" Maximum="64"
+                                                  LowerValue="{Binding MinCpuCores}" UpperValue="{Binding MaxCpuCores}"/>
+                            <TextBox Grid.Column="2" Text="{Binding MaxCpuCores, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+
+                        <TextBlock Style="{StaticResource FieldLabel}" Text="RAM, МБ (от и до)"/>
+                        <Grid Margin="0,4,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MinRamMb, UpdateSourceTrigger=PropertyChanged}"/>
+                            <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="256" Maximum="65536"
+                                                  LowerValue="{Binding MinRamMb}" UpperValue="{Binding MaxRamMb}"/>
+                            <TextBox Grid.Column="2" Text="{Binding MaxRamMb, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+
+                        <UniformGrid Columns="2">
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Доля параллельных заданий (0..1)"/>
+                                <TextBox Text="{Binding ParallelJobProbability, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Погрешность оценки (0..1)"/>
+                                <TextBox Text="{Binding EstimationError, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Style="{StaticResource ButtonPrimary}" Content="Сохранить"
+                    Command="{Binding SaveCommand}" MinWidth="140" Margin="0,0,8,0"/>
+            <Button Style="{StaticResource ButtonSecondary}" Content="Отмена"
+                    Command="{Binding CancelCommand}" MinWidth="120"/>
+        </StackPanel>
+    </Grid>
+</Window>

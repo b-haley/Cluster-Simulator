@@ -4,10 +4,7 @@ using System.Windows.Data;
 
 namespace ClusterSim.Wpf.Converters;
 
-/// <summary>
-/// Сравнивает значение перечисления с именем из ConverterParameter.
-/// Используется сегментным переключателем тем.
-/// </summary>
+/// <summary>Сравнивает значение перечисления с именем из ConverterParameter.</summary>
 public sealed class EnumMatchConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>

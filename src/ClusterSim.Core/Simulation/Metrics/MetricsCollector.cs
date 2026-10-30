@@ -4,13 +4,19 @@ using ClusterSim.Core.Features.Job;
 namespace ClusterSim.Core.Simulation.Metrics;
 
 /// <summary>
-/// Сборщик метрик: интегрирует загрузку кластера по времени
-/// и агрегирует показатели заданий на конце прогона.
+/// Сборщик метрик: интегрирует загрузку кластера в целом и каждого узла
+/// отдельно, агрегирует показатели заданий на конце прогона.
 /// </summary>
 public sealed class MetricsCollector
 {
     private readonly double _timeSeriesStep;
     private readonly List<UtilizationPoint> _timeSeries = new();
+
+    private readonly Dictionary<int, (string Name, int Cpu, int Ram)> _nodeInfo = new();
+    private readonly Dictionary<int, double> _nodeUsedCpuSeconds = new();
+    private readonly Dictionary<int, double> _nodeCapacityCpuSeconds = new();
+    private readonly Dictionary<int, double> _nodeUsedRamSeconds = new();
+    private readonly Dictionary<int, double> _nodeCapacityRamSeconds = new();
 
     private double _lastTime;
     private double _lastPointTime;
@@ -31,15 +37,21 @@ public sealed class MetricsCollector
     {
         ArgumentNullException.ThrowIfNull(cluster);
 
+        foreach (var node in cluster.Nodes)
+        {
+            _nodeInfo[node.Id] = (node.Name, node.TotalCapacity.CpuCores, node.TotalCapacity.RamMb);
+            _nodeUsedCpuSeconds[node.Id] = 0;
+            _nodeCapacityCpuSeconds[node.Id] = 0;
+            _nodeUsedRamSeconds[node.Id] = 0;
+            _nodeCapacityRamSeconds[node.Id] = 0;
+        }
+
         _lastTime = startTime;
         _lastPointTime = startTime;
         _timeSeries.Add(CreatePoint(startTime, cluster, pendingCount, runningCount));
     }
 
-    /// <summary>
-    /// Продвигает виртуальное время: накопляет площадь загрузки
-    /// и длину очереди за прошедший интервал.
-    /// </summary>
+    /// <summary>Продвигает виртуальное время: накопляет площади загрузки кластера и узлов.</summary>
     public void AdvanceTime(double newTime, Cluster cluster, int pendingCount, int runningCount)
     {
         ArgumentNullException.ThrowIfNull(cluster);
@@ -48,7 +60,31 @@ public sealed class MetricsCollector
 
         if (delta > 0)
         {
-            var (usedCpu, usedRam, totalCpu, totalRam) = GetResourceSnapshot(cluster);
+            var usedCpu = 0;
+            var usedRam = 0;
+            var totalCpu = 0;
+            var totalRam = 0;
+
+            foreach (var node in cluster.Nodes)
+            {
+                if (!node.IsOnline)
+                {
+                    continue;
+                }
+
+                var nodeUsedCpu = node.TotalCapacity.CpuCores - node.AvailableResources.CpuCores;
+                var nodeUsedRam = node.TotalCapacity.RamMb - node.AvailableResources.RamMb;
+
+                usedCpu += nodeUsedCpu;
+                usedRam += nodeUsedRam;
+                totalCpu += node.TotalCapacity.CpuCores;
+                totalRam += node.TotalCapacity.RamMb;
+
+                _nodeUsedCpuSeconds[node.Id] += nodeUsedCpu * delta;
+                _nodeCapacityCpuSeconds[node.Id] += node.TotalCapacity.CpuCores * delta;
+                _nodeUsedRamSeconds[node.Id] += nodeUsedRam * delta;
+                _nodeCapacityRamSeconds[node.Id] += node.TotalCapacity.RamMb * delta;
+            }
 
             _usedCpuSeconds += usedCpu * delta;
             _usedRamSeconds += usedRam * delta;
@@ -66,7 +102,7 @@ public sealed class MetricsCollector
         }
     }
 
-    /// <summary>Формирует итоговый набор метрик прогона.</summary>
+    /// <summary>Формирует итоговый набор метрик прогона, включая загрузку каждого узла.</summary>
     public SimulationMetrics Build(
         string policyName,
         double endTime,
@@ -98,6 +134,17 @@ public sealed class MetricsCollector
             ? finished.Max(job => job.FinishTime!.Value) - firstSubmit
             : 0.0;
 
+        var nodeUtilizations = _nodeInfo.Keys
+            .OrderBy(id => id)
+            .Select(id => new NodeUtilization(
+                id,
+                _nodeInfo[id].Name,
+                _nodeInfo[id].Cpu,
+                _nodeCapacityCpuSeconds[id] > 0 ? _nodeUsedCpuSeconds[id] / _nodeCapacityCpuSeconds[id] : 0.0,
+                _nodeInfo[id].Ram,
+                _nodeCapacityRamSeconds[id] > 0 ? _nodeUsedRamSeconds[id] / _nodeCapacityRamSeconds[id] : 0.0))
+            .ToList();
+
         return new SimulationMetrics(
             policyName,
             makespan,
@@ -115,11 +162,11 @@ public sealed class MetricsCollector
             _queueSeconds / span,
             _maxQueueLength,
             allJobs.Select(ToJobMetrics).ToList(),
-            _timeSeries.ToList());
+            _timeSeries.ToList(),
+            nodeUtilizations);
     }
 
-    /// <summary>Снимок занятых и суммарных ресурсов по онлайн-узлам.</summary>
-    private static (int UsedCpu, int UsedRam, int TotalCpu, int TotalRam) GetResourceSnapshot(Cluster cluster)
+    private static UtilizationPoint CreatePoint(double time, Cluster cluster, int pendingCount, int runningCount)
     {
         var usedCpu = 0;
         var usedRam = 0;
@@ -139,12 +186,6 @@ public sealed class MetricsCollector
             usedRam += node.TotalCapacity.RamMb - node.AvailableResources.RamMb;
         }
 
-        return (usedCpu, usedRam, totalCpu, totalRam);
-    }
-
-    private static UtilizationPoint CreatePoint(double time, Cluster cluster, int pendingCount, int runningCount)
-    {
-        var (usedCpu, usedRam, totalCpu, totalRam) = GetResourceSnapshot(cluster);
         return new UtilizationPoint(time, runningCount, pendingCount, usedCpu, totalCpu, usedRam, totalRam);
     }
 

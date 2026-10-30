@@ -127,15 +127,13 @@ public class RangeSlider : Control
         }
     }
 
-    private double ClampLower(double value) =>
-        Math.Min(Math.Max(value, Minimum), UpperValue);
+    private double ClampLower(double value) => Math.Min(Math.Max(value, Minimum), UpperValue);
 
-    private double ClampUpper(double value) =>
-        Math.Max(Math.Min(value, Maximum), LowerValue);
+    private double ClampUpper(double value) => Math.Max(Math.Min(value, Maximum), LowerValue);
 
     private double TrackWidth => _track?.ActualWidth ?? 0;
 
-    private double ThumbWidth => _lowerThumb?.ActualWidth > 0 ? _lowerThumb.ActualWidth : 16;
+    private double ThumbWidth => _lowerThumb is { ActualWidth: > 0 } ? _lowerThumb.ActualWidth : 16;
 
     private double ValuePerPixel
     {

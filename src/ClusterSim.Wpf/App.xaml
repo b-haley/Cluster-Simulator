@@ -5,7 +5,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Themes/FluentDark.xaml"/>
+                <ResourceDictionary Source="Themes/NeonDashboard.xaml"/>
                 <ResourceDictionary Source="Themes/Geometry.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.Buttons.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.Inputs.xaml"/>

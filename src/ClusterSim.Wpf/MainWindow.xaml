@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:ClusterSim.Wpf.Controls"
         Title="ClusterSim — симулятор кластерного планировщика"
-        Width="1320" Height="840"
+        Width="1360" Height="860"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BrushAppBackground}">
 
@@ -95,197 +95,173 @@
         <!-- Индикатор -->
         <ProgressBar Grid.Row="1" Height="4" Background="{DynamicResource BrushTrack}" Foreground="{DynamicResource BrushAccent}" IsIndeterminate="{Binding IsRunning}"/>
 
-        <!-- Контент -->
         <TabControl Grid.Row="2" Margin="16,12,16,0">
 
-            <!-- 1. Конструктор кластера -->
-            <TabItem Header="1. Конструктор кластера">
-                <Grid Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="340"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,12,0">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                                <TextBlock Style="{StaticResource CardTitle}" Text="Редактор узлов"/>
-                                <UniformGrid Columns="2" Margin="0,8,0,0">
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Название"/>
-                                        <TextBox Text="{Binding Designer.ClusterName, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Описание"/>
-                                        <TextBox Text="{Binding Designer.Description, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </UniformGrid>
-                            </StackPanel>
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding Designer.Nodes}" SelectedItem="{Binding Designer.SelectedNode}"
-                                      AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False" Margin="0,0,0,10">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Имя узла" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="*"/>
-                                    <DataGridTextColumn Header="CPU" Binding="{Binding CpuCores, UpdateSourceTrigger=LostFocus}" Width="80"/>
-                                    <DataGridTextColumn Header="RAM, МБ" Binding="{Binding RamMb, UpdateSourceTrigger=LostFocus}" Width="110"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                                <Button Content="Добавить узел" Command="{Binding Designer.AddNodeCommand}" MinWidth="140" Margin="0,0,8,0"/>
-                                <Button Content="Удалить узел" Command="{Binding Designer.RemoveSelectedNodeCommand}" MinWidth="140" Margin="0,0,8,0"/>
-                                <Button Style="{StaticResource ButtonPrimary}" Content="Сохранить кластер" Command="{Binding SaveClusterCommand}" MinWidth="170"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
-                    <Border Grid.Column="1" Style="{StaticResource Card}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Style="{StaticResource CardTitle}" Text="Сохраненные кластеры"/>
-                            <ListBox Grid.Row="1" Margin="0,8,0,8" ItemsSource="{Binding AvailableClusters}" SelectedItem="{Binding SelectedCluster}" DisplayMemberPath="Name"/>
-                            <StackPanel Grid.Row="2">
-                                <Button Style="{StaticResource ButtonDanger}" Content="Удалить" Command="{Binding DeleteSelectedClusterCommand}" Margin="0,0,0,6"/>
-                                <Button Style="{StaticResource ButtonGhost}" Content="Обновить список" Command="{Binding Designer.RefreshSavedCommand}"/>
-                            </StackPanel>
-                            <TextBlock Grid.Row="3" Style="{StaticResource CardSubtitle}" Text="{Binding ClusterStatusMessage}" Margin="0,8,0,0"/>
-                        </Grid>
-                    </Border>
-                </Grid>
+            <!-- ================= 1. Кластеры ================= -->
+            <TabItem Header="Кластеры">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,16">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Style="{StaticResource ButtonPrimary}" Content="Создать новый кластер"
+                                    Command="{Binding CreateClusterCommand}" MinWidth="190" Margin="0,0,10,0"/>
+                            <Button Style="{StaticResource ButtonSecondary}" Content="Создать стандартный экземпляр"
+                                    Command="{Binding CreateStandardClusterCommand}" MinWidth="220"/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding ClusterCards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}" Width="300" Margin="0,0,12,12">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Name}" DockPanel.Dock="Left"/>
+                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                                    <Button Style="{StaticResource ButtonGhost}" Content="Редактировать" Padding="8,4"
+                                                            Command="{Binding DataContext.EditClusterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Style="{StaticResource ButtonGhost}" Content="Удалить" Padding="8,4"
+                                                            Foreground="{DynamicResource BrushDanger}"
+                                                            Command="{Binding DataContext.DeleteClusterCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <TextBlock Style="{StaticResource CardSubtitle}" Text="{Binding Description}" Margin="0,2,0,8"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Style="{StaticResource KpiLabel}" Text="Узлов"/>
+                                                    <TextBlock Text="{Binding NodeCount}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}"/>
+                                                    <TextBlock Style="{StaticResource KpiLabel}" Text="Ядер суммарно" Margin="0,6,0,0"/>
+                                                    <TextBlock Text="{Binding TotalCores}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Style="{StaticResource KpiLabel}" Text="RAM суммарно, ГБ"/>
+                                                    <TextBlock Text="{Binding TotalRamGb}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}"/>
+                                                    <TextBlock Style="{StaticResource KpiLabel}" Text="Диск суммарно, ГБ" Margin="0,6,0,0"/>
+                                                    <TextBlock Text="{Binding TotalDiskGb}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Border Background="{DynamicResource BrushAccentSoft}" CornerRadius="6" Padding="8,4"
+                                                    Margin="0,10,0,0" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding PolicyName, StringFormat=Политика: {0}}" FontSize="12"
+                                                           Foreground="{DynamicResource BrushAccent}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
-            <!-- 2. Конструктор заданий -->
-            <TabItem Header="2. Конструктор заданий">
-                <Grid Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="340"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Style="{StaticResource Card}" Margin="0,0,12,0">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-                                <TextBlock Style="{StaticResource CardTitle}" Text="Параметры workload"/>
-                                <UniformGrid Columns="2" Margin="0,8,0,12">
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Название"/>
-                                        <TextBox Text="{Binding WorkloadName, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Описание"/>
-                                        <TextBox Text="{Binding WorkloadDescription, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </UniformGrid>
-                                <UniformGrid Columns="3" Margin="0,0,0,12">
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Заданий"/>
-                                        <TextBox Text="{Binding JobCount, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Seed"/>
-                                        <TextBox Text="{Binding Seed, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Заданий в час"/>
-                                        <TextBox Text="{Binding ArrivalRatePerHour, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </UniformGrid>
+            <!-- ================= 2. Задания ================= -->
+            <TabItem Header="Задания">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,8,0,16">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Style="{StaticResource ButtonPrimary}" Content="Создать новый профиль заданий"
+                                    Command="{Binding CreateWorkloadCommand}" MinWidth="220" Margin="0,0,10,0"/>
+                            <Button Style="{StaticResource ButtonSecondary}" Content="Создать стандартный экземпляр"
+                                    Command="{Binding CreateStandardWorkloadCommand}" MinWidth="220"/>
+                        </StackPanel>
 
-                                <TextBlock Style="{StaticResource FieldLabel}" Text="Длительность, сек (от и до)"/>
-                                <Grid Margin="0,4,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="70"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding MinDurationSeconds, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="0" Maximum="7200" LowerValue="{Binding MinDurationSeconds}" UpperValue="{Binding MaxDurationSeconds}"/>
-                                    <TextBox Grid.Column="2" Text="{Binding MaxDurationSeconds, UpdateSourceTrigger=PropertyChanged}"/>
-                                </Grid>
-
-                                <TextBlock Style="{StaticResource FieldLabel}" Text="Ядра CPU (от и до)"/>
-                                <Grid Margin="0,4,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="70"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding MinCpuCores, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="1" Maximum="64" LowerValue="{Binding MinCpuCores}" UpperValue="{Binding MaxCpuCores}"/>
-                                    <TextBox Grid.Column="2" Text="{Binding MaxCpuCores, UpdateSourceTrigger=PropertyChanged}"/>
-                                </Grid>
-
-                                <TextBlock Style="{StaticResource FieldLabel}" Text="RAM, МБ (от и до)"/>
-                                <Grid Margin="0,4,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="70"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="70"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding MinRamMb, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <controls:RangeSlider Grid.Column="1" Margin="12,0" Minimum="256" Maximum="65536" LowerValue="{Binding MinRamMb}" UpperValue="{Binding MaxRamMb}"/>
-                                    <TextBox Grid.Column="2" Text="{Binding MaxRamMb, UpdateSourceTrigger=PropertyChanged}"/>
-                                </Grid>
-
-                                <UniformGrid Columns="2">
-                                    <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Доля параллельных (0..1)"/>
-                                        <TextBox Text="{Binding ParallelJobProbability, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Погрешность оценки (0..1)"/>
-                                        <TextBox Text="{Binding EstimationError, UpdateSourceTrigger=PropertyChanged}"/>
-                                    </StackPanel>
-                                </UniformGrid>
-                                <Button Style="{StaticResource ButtonPrimary}" Content="Сохранить workload" Command="{Binding SaveWorkloadCommand}" MinWidth="170" Margin="0,12,0,0"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Border>
-                    <Border Grid.Column="1" Style="{StaticResource Card}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Style="{StaticResource CardTitle}" Text="Сохраненные workload-ы"/>
-                            <ListBox Grid.Row="1" Margin="0,8,0,8" ItemsSource="{Binding AvailableWorkloads}" SelectedItem="{Binding SelectedWorkload}" DisplayMemberPath="Name"/>
-                            <StackPanel Grid.Row="2">
-                                <Button Content="Загрузить в редактор" Command="{Binding LoadWorkloadCommand}" Margin="0,0,0,6"/>
-                                <Button Style="{StaticResource ButtonDanger}" Content="Удалить" Command="{Binding DeleteSelectedWorkloadCommand}" Margin="0,0,0,6"/>
-                            </StackPanel>
-                            <TextBlock Grid.Row="3" Style="{StaticResource CardSubtitle}" Text="{Binding WorkloadStatusMessage}" Margin="0,8,0,0"/>
-                        </Grid>
-                    </Border>
-                </Grid>
+                        <ItemsControl ItemsSource="{Binding WorkloadCards}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Card}" Width="300" Margin="0,0,12,12">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock Style="{StaticResource CardTitle}" Text="{Binding Name}" DockPanel.Dock="Left"/>
+                                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                                                    <Button Style="{StaticResource ButtonGhost}" Content="Редактировать" Padding="8,4"
+                                                            Command="{Binding DataContext.EditWorkloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Style="{StaticResource ButtonGhost}" Content="Удалить" Padding="8,4"
+                                                            Foreground="{DynamicResource BrushDanger}"
+                                                            Command="{Binding DataContext.DeleteWorkloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <TextBlock Style="{StaticResource CardSubtitle}" Text="{Binding Description}" Margin="0,2,0,8"/>
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource BrushTextPrimary}" Text="{Binding JobsInfo}"/>
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Text="{Binding DurationInfo}" Margin="0,2,0,0"/>
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Text="{Binding CpuInfo}" Margin="0,2,0,0"/>
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Text="{Binding RamInfo}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
-            <!-- 3. Запуск симуляции -->
-            <TabItem Header="3. Запуск симуляции">
+            <!-- ================= 3. Запуск симуляции ================= -->
+            <TabItem Header="Запуск симуляции">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
                     <StackPanel Margin="0,8,0,16">
+
                         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Style="{StaticResource CardTitle}" Text="Выбор кластеров для тестирования"/>
-                                <TextBlock Style="{StaticResource CardSubtitle}" Margin="0,2,0,12" Text="Выберите один или несколько созданных кластеров."/>
-                                <ListBox ItemsSource="{Binding AvailableClusters}" SelectionMode="Multiple"
-                                         controls:ListBoxHelper.SelectedItems="{Binding SelectedClusters}"
-                                         DisplayMemberPath="Name" MinHeight="120" MaxHeight="200"/>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="Что и где запускаем"/>
+                                <TextBlock Style="{StaticResource CardSubtitle}" Margin="0,2,0,12"
+                                           Text="Отметьте профили заданий и кластеры. Ctrl+клик или Shift+клик для множественного выбора."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Профили заданий"/>
+                                        <ListBox ItemsSource="{Binding AvailableWorkloads}"
+                                                 SelectionMode="Multiple"
+                                                 controls:ListBoxHelper.SelectedItems="{Binding SelectedWorkloads}"
+                                                 DisplayMemberPath="Name" MinHeight="140" MaxHeight="220"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Кластеры"/>
+                                        <ListBox ItemsSource="{Binding AvailableClusters}"
+                                                 SelectionMode="Multiple"
+                                                 controls:ListBoxHelper.SelectedItems="{Binding SelectedClusters}"
+                                                 DisplayMemberPath="Name" MinHeight="140" MaxHeight="220"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource CardTitle}" Text="Режим прогона"/>
+                                <RadioButton GroupName="RunMode" Margin="0,8,0,6"
+                                             Content="Сравнение кластеров: каждый выбранный кластер решает задания отдельно, сравнивается быстродействие"
+                                             IsChecked="{Binding IsComparisonModeChecked}"/>
+                                <RadioButton GroupName="RunMode"
+                                             Content="Совместные кластеры: выбранные кластеры объединяются в одну систему и решают задания вместе"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource CardTitle}" Text="Политика планирования"/>
-                                <UniformGrid Columns="2" Margin="0,8,0,0">
+                                <CheckBox Content="Использовать собственную политику каждого кластера (из редактора)"
+                                          IsChecked="{Binding UseClusterPolicy}" Margin="0,6,0,10"/>
+                                <UniformGrid Columns="2" IsEnabled="{Binding UseClusterPolicy, Converter={StaticResource InverseBool}}">
                                     <StackPanel Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Политика"/>
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Политика для всех кластеров"/>
                                         <ComboBox ItemsSource="{Binding AvailablePolicies}" SelectedItem="{Binding SelectedPolicy}"/>
                                     </StackPanel>
                                     <StackPanel VerticalAlignment="Center">
@@ -293,7 +269,8 @@
                                         <CheckBox Content="Разрешить вытеснение" IsChecked="{Binding AllowPreemption}"/>
                                     </StackPanel>
                                 </UniformGrid>
-                                <CheckBox Content="Сравнить все политики на этом workload" IsChecked="{Binding CompareAllPolicies}" Margin="0,8,0,0"/>
+                                <CheckBox Content="Дополнительно сравнить все политики (таблица «Сравнение политик»)"
+                                          IsChecked="{Binding CompareAllPolicies}" Margin="0,8,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -303,22 +280,27 @@
                                 <TextBlock Style="{StaticResource FieldLabel}" Text="Каталог экспорта" Margin="0,8,0,4"/>
                                 <TextBox Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Style="{StaticResource ButtonPrimary}" Content="Запустить симуляцию" Command="{Binding RunSimulationCommand}" MinWidth="190" Margin="0,0,10,0"/>
-                                    <Button Style="{StaticResource ButtonSecondary}" Content="Экспортировать результаты" Command="{Binding ExportResultsCommand}" MinWidth="190"/>
+                                    <Button Style="{StaticResource ButtonPrimary}" Content="Запустить симуляцию"
+                                            Command="{Binding RunSimulationCommand}" MinWidth="190" Margin="0,0,10,0"/>
+                                    <Button Style="{StaticResource ButtonSecondary}" Content="Экспортировать результаты"
+                                            Command="{Binding ExportResultsCommand}" MinWidth="190"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- 4. Результаты (Заблокировано до запуска) -->
+            <!-- ================= 4. Результаты ================= -->
             <TabItem Header="Результаты" IsEnabled="{Binding HasResults}">
                 <Grid Margin="0,8,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+
                     <UniformGrid Grid.Row="0" Columns="5" Margin="0,0,0,12">
                         <Border Style="{StaticResource KpiCard}" Margin="0,0,8,8">
                             <StackPanel>
@@ -381,7 +363,19 @@
                             </StackPanel>
                         </Border>
                     </UniformGrid>
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12" Padding="0">
+                        <DataGrid ItemsSource="{Binding ClusterUtilization}" MaxHeight="220">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Кластер / прогон" Binding="{Binding ClusterLabel}" Width="*"/>
+                                <DataGridTextColumn Header="Узлов" Binding="{Binding NodeCount}" Width="80"/>
+                                <DataGridTextColumn Header="Загрузка CPU" Binding="{Binding CpuUtilization, StringFormat={}{0:P1}}" Width="120"/>
+                                <DataGridTextColumn Header="Загрузка RAM" Binding="{Binding RamUtilization, StringFormat={}{0:P1}}" Width="120"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
                         <DataGrid ItemsSource="{Binding TimeSeries}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Время, сек" Binding="{Binding Time, StringFormat={}{0:F0}}" Width="100"/>
@@ -397,8 +391,8 @@
                 </Grid>
             </TabItem>
 
-            <!-- 5. Задания (Заблокировано до запуска) -->
-            <TabItem Header="Задания" IsEnabled="{Binding HasResults}">
+            <!-- ================= 5. Задания прогона ================= -->
+            <TabItem Header="Задания прогона" IsEnabled="{Binding HasResults}">
                 <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="0">
                     <DataGrid ItemsSource="{Binding AllJobs}">
                         <DataGrid.Columns>
@@ -421,12 +415,12 @@
                 </Border>
             </TabItem>
 
-            <!-- 6. Сравнение политик (Заблокировано до запуска с флагом сравнения) -->
+            <!-- ================= 6. Сравнение политик ================= -->
             <TabItem Header="Сравнение политик" IsEnabled="{Binding HasComparison}">
                 <Border Style="{StaticResource Card}" Margin="0,8,0,0" Padding="0">
                     <DataGrid ItemsSource="{Binding Comparison}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Политика" Binding="{Binding Policy}" Width="130"/>
+                            <DataGridTextColumn Header="Вариант" Binding="{Binding Policy}" Width="260"/>
                             <DataGridTextColumn Header="Makespan, сек" Binding="{Binding Makespan, StringFormat={}{0:F1}}" Width="110"/>
                             <DataGridTextColumn Header="Ср. ожидание, сек" Binding="{Binding AverageWaitTime, StringFormat={}{0:F1}}" Width="120"/>
                             <DataGridTextColumn Header="Ср. turnaround, сек" Binding="{Binding AverageTurnaround, StringFormat={}{0:F1}}" Width="130"/>
@@ -446,8 +440,10 @@
         <!-- Статус-бар -->
         <Border Grid.Row="3" Style="{StaticResource StatusBar}">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource BrushTextSecondary}" FontSize="12" Text="{Binding CurrentTime, StringFormat=время: {0:F0} с}" VerticalAlignment="Center"/>
-                <TextBlock Foreground="{DynamicResource BrushTextSecondary}" FontSize="12" Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <TextBlock DockPanel.Dock="Right" Foreground="{DynamicResource BrushTextSecondary}" FontSize="12"
+                           Text="{Binding CurrentTime, StringFormat=время: {0:F0} с}" VerticalAlignment="Center"/>
+                <TextBlock Foreground="{DynamicResource BrushTextSecondary}" FontSize="12"
+                           Text="{Binding StatusMessage}" TextWrapping="Wrap" VerticalAlignment="Center"/>
             </DockPanel>
         </Border>
     </Grid>
