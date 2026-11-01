@@ -6,18 +6,6 @@
 
 ---
 
-## Скриншоты
-
-> Скриншоты положите в `docs/screenshots/` и раскомментируйте строки ниже.
-
-<!-- ![Главное окно: карточки кластеров](docs/screenshots/clusters.png) -->
-<!-- ![Модальный редактор кластера](docs/screenshots/cluster-editor.png) -->
-<!-- ![Запуск симуляции и режимы](docs/screenshots/run.png) -->
-<!-- ![Результаты: KPI и загрузка кластеров](docs/screenshots/results.png) -->
-<!-- ![Сравнение политик](docs/screenshots/comparison.png) -->
-
----
-
 ## Возможности
 
 ### Симуляция
